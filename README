@@ -39,7 +39,19 @@ Active ensuite l'environnement virtuel :
 pip install -r requirements.txt
 ```
 
-### 5. Lancer l'application
+
+### 5. Entraîner les modèles
+Ouvre le dossier `notebook` et exécute `EDA.ipynb` pour entraîner les modèles. À l'issue de l'exécution, place les deux fichiers générés dans le dossier `models/` à la racine du projet :
+
+```text
+models/
+├── best_brain_tumor_cnn.keras
+└── cnn_reference.keras
+```
+
+
+
+### 6. Lancer l'application
 ```bash
 streamlit run app.py
 ```
