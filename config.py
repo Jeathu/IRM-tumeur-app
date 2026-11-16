@@ -5,25 +5,21 @@ Tous les chemins et hyperparamètres sont définis ici..
 
 from pathlib import Path
 
-
-
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 TRAIN_DIR = DATA_DIR / "Training"
 TEST_DIR = DATA_DIR / "Testing"
-MODEL_PATH = BASE_DIR / "models" / "best_brain_tumor_cnn.keras"
 
-
+MODEL_PATH = BASE_DIR / "models" / "best_brain_tumor_cnn_new.keras"
+HISTORY_PATH = BASE_DIR / "models" / "history.json"
+PARAMS_PATH = BASE_DIR / "models" / "params.json"
 
 
 # ---------------------------------------------------------------------------
-# Paramètres du modèle 
+# Paramètres du modèle
 # ---------------------------------------------------------------------------
 IMG_SIZE = 128
-COLOR_MODE = "grayscale"          # 1 canal, comme à l'entraînement
+COLOR_MODE = "grayscale"  # 1 canal, comme à l'entraînement
 NUM_CLASSES = 4
 CLASS_NAMES = ["glioma", "meningioma", "notumor", "pituitary"]
 CLASS_LABELS_FR = {
@@ -35,9 +31,6 @@ CLASS_LABELS_FR = {
 
 BATCH_SIZE = 32
 SEED = 42
-
-
-
 
 
 def check_paths() -> dict[str, bool]:

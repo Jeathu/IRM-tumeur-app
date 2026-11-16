@@ -12,3 +12,8 @@ __pycache__/
 .vscode/
 
 *.keras
+
+sc.excalidraw
+
+# Notebooks Jupyter
+.ipynb_checkpoints/

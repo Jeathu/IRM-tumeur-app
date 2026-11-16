@@ -2,20 +2,19 @@
 Chargement du modèle et pipeline d'inférence
 """
 
+import json
 import numpy as np
 from PIL import Image
 import tensorflow as tf
 import streamlit as st
 import io
 
-from config import IMG_SIZE, CLASS_NAMES, CLASS_LABELS_FR, MODEL_PATH
-
-
+from config import IMG_SIZE, CLASS_NAMES, CLASS_LABELS_FR, MODEL_PATH, PARAMS_PATH
 
 
 @st.cache_resource
 def load_model():
-    """Charge le modèle Keras en cache pour la session.
+    """Charge le modèle Keras (best_brain_tumor_cnn_new.keras).
 
     Vérifie que le fichier du modèle existe.
     Affiche une erreur si le fichier manque.
@@ -30,7 +29,21 @@ def load_model():
     return model
 
 
+def load_params() -> dict:
+    """Lit les hyperparamètres d'entraînement depuis params.json.
 
+    @Returns:
+        Dictionnaire des paramètres, vide si le fichier est absent.
+    """
+    if not PARAMS_PATH.exists():
+        return {}
+    with open(PARAMS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+"""
+  @ Parti de Test avec une image
+"""
 
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
@@ -48,14 +61,10 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
         Tableau NumPy prêt pour le modèle, de forme (1, IMG_SIZE, IMG_SIZE, 1)
     """
     img = image.convert("L")
-    img = img.resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
-    arr = np.array(img, dtype=np.float32) / 255.0 
+    img = img.resize((IMG_SIZE, IMG_SIZE), Image.NEAREST)
+    arr = np.array(img, dtype=np.float32) / 255.0
     arr = np.expand_dims(arr, axis=(0, -1))
     return arr
-
-
-
-
 
 
 @st.cache_data(show_spinner=False)
@@ -83,9 +92,6 @@ def predict(image_bytes: bytes) -> dict:
         "class_fr": CLASS_LABELS_FR[CLASS_NAMES[int(np.argmax(probs))]],
         "confidence": float(np.max(probs)),
     }
-
-
-
 
 
 def get_model_summary() -> str:

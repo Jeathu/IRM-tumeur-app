@@ -14,8 +14,9 @@ import io
 import streamlit as st
 from PIL import Image
 import pandas as pd
+from pathlib import Path
 
-from config import check_paths, CLASS_LABELS_FR, CLASS_NAMES
+from config import check_paths, CLASS_LABELS_FR, CLASS_NAMES, TEST_DIR
 from modules import data_explorer, model_loader, metrics, pdf_report
 
 # ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ if not all(paths_ok.values()):
     st.error("Ressources manquantes :")
     for k, v in paths_ok.items():
         if not v:
-            st.text(f"  - {k}")
+            st.text(f" - {k}")
     st.stop()
 
 
@@ -44,7 +45,9 @@ if not all(paths_ok.values()):
 col1, col2 = st.sidebar.columns([1, 5], vertical_alignment="center")
 col1.image("images/2491298.png", width=50)
 col2.subheader("IRM Brain Tumor")
-st.sidebar.markdown("Application de classification d'IRM cérébrales en 4 classes.")
+st.sidebar.markdown(
+    "Application de classification d'IRM cérébrales en 4 classes labels."
+)
 st.sidebar.divider()
 
 page = st.sidebar.radio(
@@ -64,6 +67,9 @@ if "last_prediction" not in st.session_state:
     st.session_state.last_prediction = None
 
 
+# ---------------------------------------------------------------------------
+# Exploration des données
+# ---------------------------------------------------------------------------
 if page == "Exploration des données":
     data_explorer.render()
 
@@ -73,23 +79,25 @@ if page == "Exploration des données":
 # ---------------------------------------------------------------------------
 elif page == "Chargement du modèle":
     st.header("Modèle chargé")
-    model = model_loader.load_model()
-    st.success("Modèle chargé avec succès.")
+
+    try:
+        model = model_loader.load_model()
+    except FileNotFoundError as e:
+        st.error(str(e))
+        st.stop()
 
     st.subheader("Architecture")
     st.code(model_loader.get_model_summary())
 
+    # Affichage des hyperparamètres
     st.subheader("Hyperparamètres")
-    st.json(
-        {
-            "input_shape": (128, 128, 1),
-            "num_classes": 4,
-            "output_activation": "softmax",
-            "optimizer": "Adam",
-            "loss": "categorical_crossentropy",
-        }
-    )
+    params = model_loader.load_params()  # Callback
+    if params:
+        st.json(params)
+    else:
+        st.info("params.json introuvable")
 
+    # Affichage matrice de confusion et rapport de classification
     st.subheader("Métriques sur le jeu de test")
     metrics.render()
 
@@ -99,10 +107,11 @@ elif page == "Chargement du modèle":
 # ---------------------------------------------------------------------------
 elif page == "Test sur une image":
     st.header("Test sur une image")
-    st.markdown("Sélectionnez une image depuis votre ordinateur ou depuis le dataset.")
+    st.markdown(
+        "Sélectionnez une image depuis votre ordinateur ou depuis le dataset de test."
+    )
 
-    source = st.radio("Source de l'image", ["Upload", "Depuis le dataset"])
-
+    source = st.radio("Source de l'image", ["Upload", "Depuis le dataset test"])
     image_bytes = None
 
     if source == "Upload":
@@ -110,23 +119,27 @@ elif page == "Test sur une image":
         if uploaded is not None:
             image_bytes = uploaded.read()
     else:
-        from pathlib import Path
-        from config import TRAIN_DIR
 
         selected_class = st.selectbox(
             "Classe", CLASS_NAMES, format_func=lambda c: CLASS_LABELS_FR[c]
         )
-        class_dir = TRAIN_DIR / selected_class
-        images = sorted(
-            [
+
+        # On test prédiction sur des image test
+        class_dir = TEST_DIR / selected_class
+
+        if not class_dir.exists():
+            st.warning(f"Dossier introuvable : {class_dir}")
+        else:
+            images = sorted(
                 p
                 for p in class_dir.iterdir()
                 if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
-            ]
-        )
+            )
         if images:
             selected = st.selectbox("Image", [p.name for p in images])
             image_bytes = (class_dir / selected).read_bytes()
+        else:
+            st.info("Aucune image dans ce dossier.")
 
     if image_bytes is not None:
         st.session_state.last_image = image_bytes

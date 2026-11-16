@@ -1,10 +1,11 @@
 """
 Calcul et affichage des métriques du modèle :
-        - Rapport de classification
-        - Matrice de confusion
-        - Courbes d'apprentissage (loss / accuracy)
+    - Rapport de classification
+    - Matrice de confusion
+    - Courbes d'apprentissage (loss / accuracy)
 """
 
+import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,7 +16,15 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay,
 )
 
-from config import TEST_DIR, IMG_SIZE, BATCH_SIZE, CLASS_NAMES, CLASS_LABELS_FR
+from config import (
+    TEST_DIR,
+    IMG_SIZE,
+    BATCH_SIZE,
+    CLASS_NAMES,
+    CLASS_LABELS_FR,
+    HISTORY_PATH,
+    PARAMS_PATH,
+)
 from .model_loader import load_model
 from importlib import import_module
 
@@ -24,21 +33,23 @@ ImageDataGenerator = import_module(
 ).ImageDataGenerator
 
 
-@st.cache_data(show_spinner="Calcul des métriques sur le jeu de test…")
+@st.cache_data(show_spinner="Calcul des métriques sur le jeu de test...")
 def compute_metrics():
     """Calcule les métriques du modèle sur le jeu de test
 
-    @ Charge le modèle entraîné
+    @ Chargement du modèle (best_brain_tumor_cnn.keras)
     @ Prépare les images de test en niveaux de gris et normalisées
-    @ Prédiction les classes
+    @ Prédiction les classes labeles avec données de test
     @ Calcule le rapport de classification, la matrice de confusion et l'exactitude
 
     @Returns:
         Dictionnaire contenant le rapport, la matrice et l'exactitude.
     """
 
+    # Callback function (model_loader.py)
     model = load_model()
 
+    # métrique sont calculées sur test data
     test_datagen = ImageDataGenerator(rescale=1.0 / 255)
     test_gen = test_datagen.flow_from_directory(
         str(TEST_DIR),
@@ -50,6 +61,7 @@ def compute_metrics():
         seed=42,
     )
 
+    # predictions
     y_pred_probs = model.predict(test_gen, verbose=0)
     y_pred = np.argmax(y_pred_probs, axis=1)
     y_true = test_gen.classes
@@ -100,52 +112,47 @@ def render():
 
     # Courbes d'apprentissage
     st.subheader("Courbes d'apprentissage")
-
-    # Callback function (affichage des courbes d'apprentissage)
-    _plot_learning_curves()
+    _plot_learning_curves() # Callback
 
 
 def _plot_learning_curves():
-    """Affiche les courbes d'apprentissage ou un message d'aide
+    """Affiche les courbes d'apprentissage (loss et accuracy par epoch)
+    à partir de history.json
 
-    @ Affichage l'historique de loss et d'accuracy.
+       @Fichier history.json généré lors de l'entraînement du meilleur modèle.
     """
+    if not HISTORY_PATH.exists():
+        st.info(f"Historique d'entraînement introuvable : {HISTORY_PATH}")
+        return
+
     try:
-        model = load_model()
+        with open(HISTORY_PATH, "r", encoding="utf-8") as f:
+            hist = json.load(f)
 
-        test_datagen = ImageDataGenerator(rescale=1.0 / 255)
-        test_gen = test_datagen.flow_from_directory(
-            str(TEST_DIR),
-            target_size=(IMG_SIZE, IMG_SIZE),
-            color_mode="grayscale",
-            batch_size=BATCH_SIZE,
-            class_mode="categorical",
-            shuffle=False,
-            seed=42,
-        )
+        hist = hist.get("history", hist)
 
-        batch_losses, batch_accs = [], []
-        for _ in range(len(test_gen)):
-            x_batch, y_batch = next(test_gen)
-            res = model.evaluate(x_batch, y_batch, verbose=0, return_dict=True)
-            batch_losses.append(res.get("loss", np.nan))
-            batch_accs.append(res.get("accuracy", res.get("acc", np.nan)))
+        epochs = range(1, len(hist["loss"]) + 1)
+        acc_key = "accuracy" if "accuracy" in hist else "acc"
 
-        batches = range(1, len(batch_losses) + 1)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
 
-        ax1.plot(batches, batch_losses, marker="o", label="Loss")
+        ax1.plot(epochs, hist["loss"], marker="o", label="Train")
+        if "val_loss" in hist:
+            ax1.plot(epochs, hist["val_loss"], marker="o", label="Validation")
         ax1.set_title("Loss")
-        ax1.set_xlabel("Batch")
+        ax1.set_xlabel("Epoch")
         ax1.legend()
 
-        ax2.plot(batches, batch_accs, marker="o", label="Accuracy")
+        ax2.plot(epochs, hist[acc_key], marker="o", label="Train")
+        if f"val_{acc_key}" in hist:
+            ax2.plot(epochs, hist[f"val_{acc_key}"], marker="o", label="Validation")
         ax2.set_title("Accuracy")
-        ax2.set_xlabel("Batch")
+        ax2.set_xlabel("Epoch")
         ax2.legend()
 
         plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+
     except Exception as e:
         st.warning(f"Impossible d'afficher les courbes : {e}")

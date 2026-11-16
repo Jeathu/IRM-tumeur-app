@@ -10,11 +10,6 @@ from PIL import Image
 from config import TRAIN_DIR, CLASS_NAMES, CLASS_LABELS_FR
 
 
-
-
-
-
-
 def _list_images(class_dir: Path) -> list[Path]:
     """Liste les images par différants classe de tumeur
 
@@ -26,8 +21,6 @@ def _list_images(class_dir: Path) -> list[Path]:
     """
     exts = {".jpg", ".jpeg", ".png"}
     return sorted([p for p in class_dir.iterdir() if p.suffix.lower() in exts])
-
-
 
 
 def render():
@@ -63,8 +56,6 @@ def render():
 
     st.caption(f"{len(images)} images disponibles")
 
-
-
     # Grille 4 colonnes
     cols = st.columns(4)
     for idx, img_path in enumerate(images):
@@ -78,8 +69,6 @@ def render():
                 use_container_width=True,
             ):
                 st.session_state["zoom_image"] = img_path
-
-
 
     # Agrandissement
     if "zoom_image" in st.session_state:
